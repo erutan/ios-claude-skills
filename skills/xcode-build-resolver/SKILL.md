@@ -15,6 +15,18 @@ You fix Xcode/Swift build errors quickly with minimal changes. No refactoring, n
 - Metal shader compilation errors
 - User says "build error", "fix build", "won't compile"
 
+## Common Destinations
+
+Simulator names change with each Xcode release. Always verify with `xcrun simctl list devices available`.
+
+| Platform | Destination Specifier |
+|----------|----------------------|
+| macOS native | `'platform=macOS'` |
+| Mac Catalyst | `'platform=macOS,variant=Mac Catalyst,arch=arm64'` |
+| iOS Simulator | `'platform=iOS Simulator,name=iPhone 17 Pro'` |
+| iOS Device | `'platform=iOS,id=<UDID>'` |
+| Generic (build only) | `'generic/platform=iOS'` |
+
 ## Diagnostic Commands
 
 ```bash
@@ -26,7 +38,7 @@ xcodebuild build -project MyApp.xcodeproj \
 # Full build (iOS Simulator)
 xcodebuild build -project MyApp.xcodeproj \
   -scheme MyApp \
-  -destination 'platform=iOS Simulator,name=iPhone 16' 2>&1 | grep -E "error:|warning:" | head -30
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' 2>&1 | grep -E "error:|warning:" | head -30
 
 # Clean build (when caches are stale)
 xcodebuild clean build -project MyApp.xcodeproj \
@@ -173,6 +185,20 @@ public struct Config {
 # Duplicate symbol
 # FIX: Check for files included in multiple targets
 # Or: mark one as @_implementationOnly import
+```
+
+### Code Signing Errors
+
+```bash
+# ERROR: No signing certificate "Mac Development" found
+# FIX: For debug builds that don't need signing:
+xcodebuild build -project MyApp.xcodeproj \
+  -scheme MyApp \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  CODE_SIGNING_ALLOWED=NO
+
+# For Mac Catalyst builds without a certificate:
+# Switch to iOS Simulator destination instead — simulators don't require signing
 ```
 
 ## Minimal Diff Strategy
