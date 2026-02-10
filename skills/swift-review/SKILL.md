@@ -39,8 +39,8 @@ You are a senior Swift/iOS code reviewer ensuring high standards of quality, saf
 - Structs preferred over classes unless identity/reference semantics needed
 - `@Observable` (not ObservableObject) for new code targeting iOS 17+
 - No retain cycles: `[weak self]` in closures that outlive the caller
-- No force unwraps (`!`) in production code — use `guard let` or `if let`
-- No `try!` or `as!` — handle errors and type mismatches explicitly
+- No force unwraps in production code — use `guard let` or `if let`
+- No `try!` or `as!` in production code — handle errors and type mismatches explicitly
 - Lazy properties only when initialization is expensive
 - Large value types not copied unnecessarily (use `inout` or reference type)
 
