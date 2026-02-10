@@ -10,7 +10,7 @@ Runs `swift -parse` after every Edit/Write on `.swift` files. Catches syntax err
 
 ```bash
 mkdir -p .claude/hooks
-cp /Users/erutan/Repos/ios-claude-skills/hooks/swift-parse-check.sh .claude/hooks/
+cp hooks/swift-parse-check.sh .claude/hooks/
 chmod +x .claude/hooks/swift-parse-check.sh
 ```
 
