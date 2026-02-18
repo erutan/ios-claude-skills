@@ -5,7 +5,7 @@ description: Generate or refresh codemaps for Swift/iOS projects. Scans Swift so
 
 # Update Codemaps
 
-Generate or refresh developer navigation codemaps for Swift/iOS/Mac Catalyst projects.
+Generate token-lean developer navigation codemaps for Swift/iOS/Mac Catalyst projects.
 
 ## When to Activate
 
@@ -15,148 +15,96 @@ Generate or refresh developer navigation codemaps for Swift/iOS/Mac Catalyst pro
 
 ## Output Structure
 
-Generate 4 files in `codemaps/` at the project root:
+Generate files in `codemaps/` at the project root. **Each file must stay under ~1000 tokens.**
 
 | File | Covers |
 |------|--------|
-| `architecture.md` | High-level module map, directory structure, key relationships, entry points |
-| `backend.md` | Services, managers, networking, GPU/compute pipelines, caching, data loading |
-| `data.md` | Models, enums, type definitions, protocols, phantom types, persistence schemas |
-| `frontend.md` | SwiftUI views, view hierarchy, state management, design tokens, accessibility |
+| `architecture.md` | Module map, directory roles, entry points, key relationships |
+| `backend.md` | Services, managers, networking, GPU/compute, caching |
+| `data.md` | Models, enums, protocols, persistence schemas |
+| `frontend.md` | View hierarchy, state management, design tokens |
+
+## Token Budget
+
+**Hard limit: ~1000 tokens per codemap file.** Codemaps are loaded into AI context windows — every extra token competes with actual source code. Be ruthlessly concise.
 
 ## Workflow
 
 ### Step 1: Scan Project Structure
 
-Map the directory layout. Identify key directories and their roles:
-
 ```bash
-# Get directory tree (exclude build artifacts, caches)
 find . -name "*.swift" -not -path "*/.*" -not -path "*/DerivedData/*" \
   | sed 's|/[^/]*$||' | sort -u
 ```
 
-Count scale:
-```bash
-# Total Swift files and lines
-find . -name "*.swift" -not -path "*/.*" | wc -l
-find . -name "*.swift" -not -path "*/.*" -exec cat {} + | wc -l
-```
+### Step 2: Generate Codemaps
 
-### Step 2: Analyze Types and Relationships
-
-For each major directory, read Swift files and extract:
-
-- **Types**: structs, classes, enums, actors, protocols
-- **Conformances**: what protocols each type conforms to
-- **Key properties and methods**: public API surface
-- **Dependencies**: what each module imports/references from other modules
-- **Patterns**: @Observable, ObservableObject, actors, singletons
-
-Focus on **signatures and relationships**, not implementation details.
-
-### Step 3: Generate Codemaps
-
-Use this format for each file:
+Use this format:
 
 ```markdown
 # [Area Name]
 
-> Freshness: YYYY-MM-DD | [brief context about project state]
+<!-- Freshness: YYYY-MM-DD | Files scanned: N | ~Token estimate -->
 
 ## Overview
-
-[1-3 sentence description of what this area covers]
+[1-2 sentences max]
 
 ## Module Map
-
-[Directory tree with brief annotations]
+Dir/
+  SubDir/          — role annotation
 
 ## Key Types
-
-[Struct/class/protocol definitions — signatures only, not full bodies]
+| Type | Role | File |
+|------|------|------|
+| TileCache | LRU memory cache | Tiles/Cache/TileCache.swift |
 
 ## Data Flow
-
-[ASCII diagram showing how data moves through this area]
-
-## Relationships
-
-[Which modules depend on which, protocol hierarchies]
+Views → @Observable Managers → Services → GPU/Network/Cache
 ```
 
-### Step 4: Diff Check
+### Step 3: Diff Check
 
-If codemaps already exist, compare with previous versions:
+If codemaps exist, compare with previous versions. If changes > ~30%, summarize and ask before overwriting.
 
-1. Read existing codemap files
-2. Generate new content
-3. Estimate change percentage
-4. If changes exceed ~30%, summarize what changed and ask user to confirm before overwriting
-5. If minor updates, apply directly
+### Step 4: Update Freshness
 
-### Step 5: Update Freshness
-
-Every codemap file must have a freshness timestamp:
+Every codemap must include a metadata comment:
 ```markdown
-> Freshness: 2026-02-08 | post-refactor of tile loading system
+<!-- Freshness: 2026-02-18 | Files scanned: 42 | ~650 tokens -->
 ```
 
-## Format Conventions
+## Format Rules
 
-**Adapt detail level to project complexity:**
+**DO:**
+- Arrow-chain notation for flows: `View → Manager.load() → Service.fetch() → Cache.get()`
+- One-line role descriptions: `Services/TileLoader.swift (tile fetch + decode, 180 lines)`
+- Tables for structured type references
+- Minimal ASCII diagrams (3-5 lines max)
+- Relative paths: `Services/TileLoader.swift`
 
-- **Large projects (10K+ LOC)**: Detailed module maps, type hierarchies, protocol chains, GPU pipeline docs, phantom type documentation, data flow diagrams
-- **Small projects (<5K LOC)**: Essential views, state management table, key enums/models, simple hierarchy
+**DON'T:**
+- No Swift code blocks in codemaps — signatures go in tables or inline
+- No full function bodies or implementation details
+- No generics/constraints unless critical to understanding (e.g., phantom types)
+- No prose paragraphs — bullets and tables only
+- No line-by-line commentary
 
-**File references**: Use relative paths — `Services/TileLoader.swift`, not absolute paths
+**Adapt to project size:**
+- **Large (10K+ LOC):** All 4 files, full module maps, protocol chains
+- **Small (<5K LOC):** Combine into fewer files, essential types only
 
-**Type definitions**: Show actual Swift signatures with generics and constraints:
-```swift
-struct TypedTexture<W: TextureWidth, H: TextureHeight, R: TextureRole> {
-    let mtlTexture: MTLTexture
-}
-```
+## Swift-Specific Signals
 
-**Architecture diagrams**: ASCII art in code blocks:
-```
-SwiftUI Views
-    ↓
-@Observable Managers (state)
-    ↓
-Services / Coordinators (logic)
-    ↓
-GPU Pipeline / Network / Cache
-```
-
-**Tables** for structured reference data:
-```markdown
-| Type | Purpose | File |
-|------|---------|------|
-| TileCache | LRU in-memory cache | Tiles/Cache/TileCache.swift |
-```
-
-**What to include**: Purpose, structure, signatures, relationships, data flow
-**What to skip**: Implementation details, full function bodies, line-by-line commentary
-
-## Swift-Specific Analysis
-
-When scanning Swift files, pay attention to:
-
-- **@Observable / ObservableObject** — these are state managers, document their published properties
-- **actor** declarations — these manage concurrent shared state, document their isolation
-- **protocol** hierarchies — document conformance chains
-- **Phantom types** — document marker protocols and what safety they provide
-- **@MainActor** annotations — note isolation boundaries
-- **Metal shaders** (.metal files) — document kernel names, parameter structs, texture roles
-- **UIViewRepresentable** — these bridge UIKit, document what they wrap
-- **Extensions** — note which file adds which protocol conformance
+When scanning, note these patterns for the relevant codemap:
+- `@Observable` / `ObservableObject` → state managers, list published properties
+- `actor` → concurrent shared state, note isolation
+- `protocol` hierarchies → document conformance chains
+- `@MainActor` → note isolation boundaries
+- `UIViewRepresentable` → note what UIKit view it wraps
 
 ## Incremental Updates
 
 For partial updates (e.g., "update the backend codemap"):
-
-1. Read only the relevant codemap file
-2. Scan only the relevant source directories
-3. Update changed sections, preserve unchanged sections
-4. Update the freshness timestamp
+1. Read only the relevant codemap + source directories
+2. Update changed sections, preserve unchanged
+3. Update freshness timestamp and token estimate
