@@ -5,20 +5,22 @@ description: Analyze Swift test coverage via xcodebuild and xcrun xccov. Identif
 
 # Swift Test Coverage
 
-Analyze and improve test coverage for Swift/iOS projects using xcodebuild code coverage tooling.
+Analyze and improve test coverage for Swift/iOS projects.
 
 ## When to Activate
 
 - User says "test coverage", "coverage report", "what's not covered"
 - After writing new code, to verify coverage
-- Before merging, to check coverage thresholds
-- When identifying what tests to write next
+- Before merging, to check thresholds
 
-## Coverage Workflow
+## Workflow
 
 ### 1. Run Tests with Coverage
 
 ```bash
+# Delete stale results first
+rm -rf /tmp/TestResults.xcresult
+
 # Mac Catalyst (fastest, supports Metal)
 xcodebuild test -project MyApp.xcodeproj \
   -scheme MyApp \
@@ -26,56 +28,21 @@ xcodebuild test -project MyApp.xcodeproj \
   -enableCodeCoverage YES \
   -resultBundlePath /tmp/TestResults.xcresult \
   -only-testing:MyAppTests 2>&1 | tail -20
-
-# iOS Simulator
-xcodebuild test -project MyApp.xcodeproj \
-  -scheme MyApp \
-  -destination 'platform=iOS Simulator,name=iPhone 16' \
-  -enableCodeCoverage YES \
-  -resultBundlePath /tmp/TestResults.xcresult \
-  -only-testing:MyAppUnitTests 2>&1 | tail -20
 ```
 
-**Important**: Delete previous xcresult before re-running or use a unique path:
-```bash
-rm -rf /tmp/TestResults.xcresult
-```
-
-### 2. View Coverage Summary
+### 2. Analyze Coverage
 
 ```bash
-# Overall summary (all targets)
+# Summary
 xcrun xccov view --report /tmp/TestResults.xcresult
 
-# JSON format for parsing
-xcrun xccov view --report --json /tmp/TestResults.xcresult
-
-# Filter to app target only (exclude test targets, frameworks)
-xcrun xccov view --report /tmp/TestResults.xcresult | grep "MyApp"
-```
-
-### 3. View File-Level Coverage
-
-```bash
-# All files with coverage percentages
+# File-level for app target
 xcrun xccov view --report /tmp/TestResults.xcresult --files-for-target MyApp.app
 
-# JSON for programmatic analysis
-xcrun xccov view --report --json /tmp/TestResults.xcresult --files-for-target MyApp.app
-```
-
-### 4. View Line-Level Coverage for a Specific File
-
-```bash
-# See which lines are covered/uncovered
+# Line-level for a specific file
 xcrun xccov view --file /path/to/SourceFile.swift /tmp/TestResults.xcresult
-```
 
-### 5. Identify Under-Covered Files
-
-Parse the JSON report to find files below 80%:
-
-```bash
+# Find files below 80% (JSON parsing)
 xcrun xccov view --report --json /tmp/TestResults.xcresult \
   | python3 -c "
 import json, sys
@@ -89,6 +56,18 @@ for target in data.get('targets', []):
 " | sort -n
 ```
 
+### 3. Generate Tests for Under-Covered Files
+
+For each file below threshold:
+- Identify untested public methods and error paths
+- Generate tests using project conventions (Swift Testing or XCTest)
+- Mock external dependencies via protocols
+- Cover: happy path → error path → edge cases → branch coverage
+
+### 4. Verify Improvement
+
+Re-run coverage. Repeat until threshold met.
+
 ## Coverage Targets
 
 | Category | Target | Rationale |
@@ -97,103 +76,13 @@ for target in data.get('targets', []):
 | Utility functions | 90%+ | Pure functions, easy to test |
 | View logic (computed properties, formatting) | 70%+ | Testable without UI |
 | SwiftUI views | Skip | Test via UI tests or manually |
-| Metal shaders | Skip | Test via integration tests on GPU output |
+| Metal shaders | Skip | Test via integration on GPU output |
 | App entry point / delegates | Skip | Minimal logic |
-
-## Generating Test Stubs
-
-For each under-covered file, generate test stubs following these patterns:
-
-### For a Service/Manager class:
-```swift
-import Testing
-@testable import MyApp
-
-@Suite("ServiceName")
-struct ServiceNameTests {
-    // Test each public method
-    @Test("methodName does expected thing")
-    func methodName() async throws {
-        let sut = ServiceName(dependency: MockDependency())
-        let result = try await sut.methodName(input)
-        #expect(result == expectedOutput)
-    }
-
-    // Test error paths
-    @Test("methodName throws on invalid input")
-    func methodNameError() async throws {
-        let sut = ServiceName(dependency: MockDependency())
-        await #expect(throws: ServiceError.invalidInput) {
-            try await sut.methodName(badInput)
-        }
-    }
-}
-```
-
-### For a Model/Value type:
-```swift
-@Suite("ModelName")
-struct ModelNameTests {
-    @Test("initializes with valid data")
-    func validInit() {
-        let model = ModelName(x: 1, y: 2)
-        #expect(model.x == 1)
-        #expect(model.y == 2)
-    }
-
-    @Test("equatable conformance")
-    func equality() {
-        let a = ModelName(x: 1, y: 2)
-        let b = ModelName(x: 1, y: 2)
-        #expect(a == b)
-    }
-
-    @Test("computed properties")
-    func computedProperty() {
-        let model = ModelName(x: 3, y: 4)
-        #expect(abs(model.magnitude - 5.0) < 0.0001)
-    }
-}
-```
-
-## Coverage Report Format
-
-```
-# Test Coverage Report
-
-## Summary
-- Overall coverage: XX.X%
-- Target: 80%
-- Status: PASSING / NEEDS WORK
-
-## Files Below Threshold
-
-| File | Coverage | Gap | Priority |
-|------|----------|-----|----------|
-| TileLoader.swift | 45.2% | -34.8% | HIGH |
-| SearchManager.swift | 62.1% | -17.9% | MEDIUM |
-| Constants.swift | 78.5% | -1.5% | LOW |
-
-## Well-Covered Files (80%+)
-- MotionManager.swift: 92.3%
-- TileCache.swift: 85.7%
-- Geometry.swift: 97.1%
-
-## Excluded from Coverage
-- SwiftUI Views (test via UI tests)
-- Metal shaders (test via integration)
-- App entry point
-
-## Recommended Next Tests
-1. TileLoader.swift — mock network layer, test fetch/retry/error paths
-2. SearchManager.swift — test search query formatting, result mapping
-3. Constants.swift — test computed constants, boundary values
-```
 
 ## Tips
 
-- Run coverage on **Mac Catalyst** for fastest turnaround and Metal support
-- Use `-only-testing:` to run specific test bundles (skip UI tests for speed)
-- Coverage data is cumulative in an xcresult — delete old results before re-running
-- Focus effort on business logic, not UI code — highest ROI for testing
-- Watch for files with 0% coverage that should have tests (new code without TDD)
+- Mac Catalyst destination for fastest turnaround + Metal support
+- `-only-testing:` to skip UI tests for speed
+- Delete old `.xcresult` before re-running — coverage data is cumulative
+- Focus effort on business logic — highest ROI
+- Watch for 0% files that should have tests (new code without TDD)
