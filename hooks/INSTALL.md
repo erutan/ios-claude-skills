@@ -2,7 +2,7 @@
 
 ## swift-parse-check
 
-Runs `swift -parse` after every Edit/Write on `.swift` files. Catches syntax errors immediately so Claude doesn't continue building on broken code.
+Runs `swiftc -parse` after every Edit/Write on `.swift` files. Catches syntax errors immediately so Claude doesn't continue building on broken code.
 
 ### Setup
 
@@ -37,7 +37,7 @@ chmod +x .claude/hooks/swift-parse-check.sh
 
 ### What it does
 
-- After every Edit or Write of a `.swift` file, runs `swift -parse` (syntax check only, no compilation)
+- After every Edit or Write of a `.swift` file, runs `swiftc -parse` (syntax check only, no compilation)
 - If syntax is valid: exits silently, no impact on workflow
 - If syntax error: exits with code 2, which feeds the error back to Claude as a blocking message. Claude sees the parse error and fixes it immediately.
 - Non-Swift files are ignored

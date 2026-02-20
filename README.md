@@ -17,7 +17,7 @@ Claude Code skills and hooks for Swift/iOS/Mac Catalyst projects.
 
 | Hook | Description |
 |------|-------------|
-| `swift-parse-check` | Runs `swift -parse` after every Edit/Write on `.swift` files. Catches syntax errors immediately |
+| `swift-parse-check` | Runs `swiftc -parse` after every Edit/Write on `.swift` files. Catches syntax errors immediately |
 
 ## Install
 

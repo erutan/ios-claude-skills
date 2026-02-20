@@ -1,5 +1,5 @@
 #!/bin/bash
-# PostToolUse hook: runs `swift -parse` on .swift files after Edit/Write
+# PostToolUse hook: runs `swiftc -parse` on .swift files after Edit/Write
 # Catches syntax errors immediately so Claude doesn't move on with broken code.
 #
 # Install: copy to .claude/hooks/ in your project, chmod +x, and add to settings.
@@ -18,7 +18,7 @@ if [[ ! -f "$FILE_PATH" ]]; then
 fi
 
 # Run syntax check
-PARSE_OUTPUT=$(swift -parse "$FILE_PATH" 2>&1)
+PARSE_OUTPUT=$(swiftc -parse "$FILE_PATH" 2>&1)
 PARSE_EXIT=$?
 
 if [[ $PARSE_EXIT -ne 0 ]]; then
